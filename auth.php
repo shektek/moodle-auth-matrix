@@ -76,7 +76,7 @@ class auth_plugin_matrix extends auth_plugin_base {
             )
         );
 
-        $url = 'http://localhost:5000';
+        $url = 'http://localhost:5000/api/User';
 
         //if https gets set up, switch to this
         /*
@@ -89,7 +89,7 @@ class auth_plugin_matrix extends auth_plugin_base {
             )
         );
 
-        $url = 'http://localhost:5001';
+        $url = 'http://localhost:5001/api/User';
         */
 
         $context = stream_context_create($opts);
