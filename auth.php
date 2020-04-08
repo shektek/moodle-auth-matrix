@@ -53,23 +53,7 @@ class auth_plugin_matrix extends auth_plugin_base {
     * Send the login request to the .net router
     * @returns the login request or FALSE
     */
-    function send_login_request ($username, $password) {
-        list($username_only, $homeserver) = array_pad(explode("@", $username), 2, null);
-        
-        if($username_only !== null) {
-            echo('user is ' . $username_only . "\r\n");
-        }
-        else {
-            $username_only = $username;  
-		}
-
-        if($homeserver !== null) {
-            echo('homeserver is ' . $homeserver . "\r\n");
-		}
-        else {
-            $homeserver = 'matrix.org';
-		}
-
+    function send_login_request ($homeserver, $username_only, $password) {
         $homeserver = 'http://' . $homeserver;
 
         $data = array(
@@ -112,7 +96,7 @@ class auth_plugin_matrix extends auth_plugin_base {
 
         /* Sends an http request to www.example.com
            with additional headers shown above */
-        $result = @file_get_contents($url, false, $context);
+        $result = file_get_contents($url, false, $context);
 
         print_r($result);
 
@@ -125,6 +109,9 @@ class auth_plugin_matrix extends auth_plugin_base {
             if($status_code === "401") {
                 $result = null;
 		    }
+            else {
+                $result = json_decode($result, true);     
+			}
         }
         else {
             $result = null;  
@@ -132,31 +119,7 @@ class auth_plugin_matrix extends auth_plugin_base {
 
         return $result;
 	}
-   /* 
-    public function loginpage_hook() {
-        error_log('hit matrix loginpage_hook function...');
 
-        if(isset($_SERVER['PHP_AUTH_USER'])
-            && isset($_SERVER['PHP_AUTH_PW'])) {
-                $username = $_SERVER['PHP_AUTH_USER'];
-                $password = $_SERVER['PHP_AUTH_PW'];
-
-                $result = $this->send_login_request($username, $password);
-
-                if($result !== false)
-                {
-                    if($result['user_id'] === $username_only)
-                    {
-                        error_log($username . ' logged in');
-
-                        $this_user = authenticate_user_login();
-                    }
-		        }
-        
-                error_log('error logging in ' . $username);
-		}
-	}
-    */
     /**
      * Returns true if the username and password work or don't exist and false
      * if the user exists and the password is wrong.
@@ -166,26 +129,32 @@ class auth_plugin_matrix extends auth_plugin_base {
      * @return bool Authentication success or failure.
      */
     function user_login ($username, $password) {
-        //if(isset($_SERVER['PHP_AUTH_USER'])
-        //    && isset($_SERVER['PHP_AUTH_PW'])) {
-        //        $username = $_SERVER['PHP_AUTH_USER'];
-        //        $password = $_SERVER['PHP_AUTH_PW'];
-
-                $result = $this->send_login_request($username, $password);
-
-                if($result !== null)
-                {
-                    echo('user from JSON is called ' . $result['user_id'] . "\r\n");
-
-                    if($result['user_id'] === $username)
-                    {
-                        echo("Success! " . $username . " logged in.\r\n");
-                        return true;
-                    }
-		        }
+        //first try extracting the username and homeserver from the username string
+        list($username_only, $homeserver) = array_pad(explode("@", $username), 2, null);
         
-                echo('Failed logging in user ' . $username . "\r\n");
-		//}
+        if($username_only === null) {
+            $username_only = $username;  
+		}
+
+        //if no homeserver is specified, set it to matrix.org
+        if($homeserver === null) {
+            $homeserver = 'matrix.org';
+		}
+
+        $result = $this->send_login_request($homeserver, $username_only, $password);
+
+        if($result !== null)
+        {
+            echo('user from JSON is called ' . $result['user_id'] . "\r\n");
+
+            if(strstr($result['user_id'], $username_only) !== FALSE)
+            {
+                echo("Success! " . $username . " logged in.\r\n");
+                return true;
+            }
+	    }
+        
+        echo('Failed logging in user ' . $username . "\r\n");
         
         return false;
     }
