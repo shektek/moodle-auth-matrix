@@ -1,11 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\db",
-    "\\lang",
-    "\\lang\\en",
-    "\\lang\\en\\en"
+    "\\classes",
+    "\\lang"
   ],
-  "SelectedNode": "\\lang\\en\\en\\auth_matrix.php",
+  "SelectedNode": "\\version.php",
   "PreviewInSolutionExplorer": false
 }

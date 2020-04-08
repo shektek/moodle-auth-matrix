@@ -54,10 +54,23 @@ class auth_plugin_matrix extends auth_plugin_base {
     * @returns the login request or FALSE
     */
     function send_login_request ($username, $password) {
-        list($username_only, $homeserver) = explode(":", $username);
+        list($username_only, $homeserver) = array_pad(explode("@", $username), 2, null);
         
-        echo $username_only;
-        echo $homeserver;
+        if($username_only !== null) {
+            echo('user is ' . $username_only . "\r\n");
+        }
+        else {
+            $username_only = $username;  
+		}
+
+        if($homeserver !== null) {
+            echo('homeserver is ' . $homeserver . "\r\n");
+		}
+        else {
+            $homeserver = 'matrix.org';
+		}
+
+        $homeserver = 'http://' . $homeserver;
 
         $data = array(
             'token'       => null,
@@ -66,13 +79,16 @@ class auth_plugin_matrix extends auth_plugin_base {
             'username'    => $username_only
         );
 
+        echo('sending request for user ' . $username_only . ' on homeserver ' . $homeserver . "\r\n");
+
         //normal http request
         $opts = array(
             'http' => array(
-                'method'=>"POST",
-                'header'=>"Accept-language: en\r\n" .
-                        "Content-Length " . strlen($data) . "\r\n",
-                'content' => json_encode($data)
+                'method'    => "POST",
+                'ignore_errors' => true,
+                'content'   => json_encode($data),
+                'header'    => "Content-Type: application/json\r\n" .
+                                "Accept: application/json\r\n"
             )
         );
 
@@ -96,11 +112,51 @@ class auth_plugin_matrix extends auth_plugin_base {
 
         /* Sends an http request to www.example.com
            with additional headers shown above */
-        $result = file_get_contents($url, false, $context);
+        $result = @file_get_contents($url, false, $context);
+
+        print_r($result);
+
+        if($result !== FALSE && !empty($result)) {
+            $status_line = $result[0];
+            preg_match('{HTTP\/\S*\s(\d{3})}', $status_line, $matches);
+
+            $status_code = $matches[1];
+
+            if($status_code === "401") {
+                $result = null;
+		    }
+        }
+        else {
+            $result = null;  
+		}
 
         return $result;
 	}
+   /* 
+    public function loginpage_hook() {
+        error_log('hit matrix loginpage_hook function...');
 
+        if(isset($_SERVER['PHP_AUTH_USER'])
+            && isset($_SERVER['PHP_AUTH_PW'])) {
+                $username = $_SERVER['PHP_AUTH_USER'];
+                $password = $_SERVER['PHP_AUTH_PW'];
+
+                $result = $this->send_login_request($username, $password);
+
+                if($result !== false)
+                {
+                    if($result['user_id'] === $username_only)
+                    {
+                        error_log($username . ' logged in');
+
+                        $this_user = authenticate_user_login();
+                    }
+		        }
+        
+                error_log('error logging in ' . $username);
+		}
+	}
+    */
     /**
      * Returns true if the username and password work or don't exist and false
      * if the user exists and the password is wrong.
@@ -110,48 +166,34 @@ class auth_plugin_matrix extends auth_plugin_base {
      * @return bool Authentication success or failure.
      */
     function user_login ($username, $password) {
-        global $CFG, $DB;
+        //if(isset($_SERVER['PHP_AUTH_USER'])
+        //    && isset($_SERVER['PHP_AUTH_PW'])) {
+        //        $username = $_SERVER['PHP_AUTH_USER'];
+        //        $password = $_SERVER['PHP_AUTH_PW'];
 
-        $result = send_login_request($username, $password);
+                $result = $this->send_login_request($username, $password);
 
-        if($result !== false)
-        {
-            if($result['user_id'] === $username_only)
-            {
-                echo($username . ' logged in');
-                return true;
-            }
-		}
+                if($result !== null)
+                {
+                    echo('user from JSON is called ' . $result['user_id'] . "\r\n");
+
+                    if($result['user_id'] === $username)
+                    {
+                        echo("Success! " . $username . " logged in.\r\n");
+                        return true;
+                    }
+		        }
         
-        echo('error logging in ' . $username);
-
+                echo('Failed logging in user ' . $username . "\r\n");
+		//}
+        
         return false;
-    }
-
-    //TODO: deprecate
-    /**
-     * Updates the user's password.
-     *
-     * called when the user password is updated.
-     *
-     * @param  object  $user        User table object
-     * @param  string  $newpassword Plaintext password
-     * @return boolean result
-     *
-     */
-    function user_update_password($user, $newpassword) {
-        //$user = get_complete_user_data('id', $user->id);
-        // This will also update the stored hash to the latest algorithm
-        // if the existing hash is using an out-of-date algorithm (or the
-        // legacy md5 algorithm).
-        //return update_internal_user_password($user, $newpassword);
     }
 
     //don't let moodle store the hashed password
     function prevent_local_passwords() {
         return true;
     }
-
 
     /**
      * Returns true if this authentication plugin is 'internal'.
@@ -161,6 +203,10 @@ class auth_plugin_matrix extends auth_plugin_base {
     function is_internal() {
         return false;
     }
+
+    function is_synchronised_with_external() {
+        return false;
+	}
 
     /**
      * Returns true if this authentication plugin can change the user's
@@ -192,16 +238,6 @@ class auth_plugin_matrix extends auth_plugin_base {
     function can_reset_password() {
         return false;
     }
-
-    /**
-     * Returns true if plugin can be manually set.
-     *
-     * @return bool
-     */
-    function can_be_manually_set() {
-        return true;
-    }
-
 }
 
 
