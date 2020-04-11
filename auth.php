@@ -76,7 +76,7 @@ class auth_plugin_matrix extends auth_plugin_base {
             )
         );
 
-        $url = 'http://localhost:5000/api/User';
+        $url = 'http://localhost:5000/api/User/Login';
 
         //if https gets set up, switch to this
         /*
